@@ -28,40 +28,41 @@ public class ZkCmd {
         final CmdManager cmdManager = new CmdManager(zkTasksHandler.getCuratorClient());
         zkTasksHandler.addListener(cmdManager);
         CuratorFramework curatorFramework = zkTasksHandler.getCuratorClient();
-        InterProcessSemaphoreMutex mutex = new InterProcessSemaphoreMutex(curatorFramework, zkWork + "/watched_mutex");
-
         cmdManager.start();
 
         try {
-            if (!curatorFramework.getState().equals(CuratorFrameworkState.STARTED)) {
-                log.info("Curator client isn't started .. waitting 5 sec.");
-                Thread.sleep(5000);
-            }
-
-
-            if (curatorFramework.checkExists().forPath(zkTaskPath) == null) {
-                log.info("ZkNode: {} doesn't exist, create it.", zkTaskPath);
-                curatorFramework.create().forPath(zkTaskPath);
-            } else {
-                List<String> cmdNodeJsonTasks = curatorFramework.getChildren().forPath(zkTaskPath);
-                List<Task> cmdTasks = new ArrayList<>();
-                log.info("Found {} tasks: {}", cmdNodeJsonTasks.size(), cmdNodeJsonTasks);
-
-                for (String cmdNodeJsonTask : cmdNodeJsonTasks) {
-                    byte[] cmdJsonTask = curatorFramework.getData().forPath(zkTaskPath + "/" + cmdNodeJsonTask);
-                    Map<String, Object> map = objectMapper.readValue(cmdJsonTask, Map.class);
-                    cmdTasks.add(new CmdTask((String) map.get("cmd"), (Map<String, String>) map.get("files")));
-                    curatorFramework.delete().forPath(zkTaskPath + "/" + cmdNodeJsonTask);
+            Thread.sleep(5000);
+            if (zkTasksHandler.isLeader()) {
+                if (!curatorFramework.getState().equals(CuratorFrameworkState.STARTED)) {
+                    log.info("Curator client isn't started .. waitting 5 sec.");
+                    Thread.sleep(5000);
                 }
 
-                zkTasksHandler.setTasks(cmdTasks);
-                zkTasksHandler.wakeup();
-            }
 
-            curatorFramework.getChildren().usingWatcher(new CmdWatcher(zkTasksHandler, zkTaskPath, mutex)).forPath(zkTaskPath);
+                if (curatorFramework.checkExists().forPath(zkTaskPath) == null) {
+                    log.info("ZkNode: {} doesn't exist, create it.", zkTaskPath);
+                    curatorFramework.create().forPath(zkTaskPath);
+                } else {
+                    List<String> cmdNodeJsonTasks = curatorFramework.getChildren().forPath(zkTaskPath);
+                    List<Task> cmdTasks = new ArrayList<>();
+                    log.info("Found {} tasks: {}", cmdNodeJsonTasks.size(), cmdNodeJsonTasks);
+
+                    for (String cmdNodeJsonTask : cmdNodeJsonTasks) {
+                        byte[] cmdJsonTask = curatorFramework.getData().forPath(zkTaskPath + "/" + cmdNodeJsonTask);
+                        Map<String, Object> map = objectMapper.readValue(cmdJsonTask, Map.class);
+                        cmdTasks.add(new CmdTask((String) map.get("cmd"), (Map<String, String>) map.get("files")));
+                        curatorFramework.delete().forPath(zkTaskPath + "/" + cmdNodeJsonTask);
+                    }
+
+                    zkTasksHandler.setTasks(cmdTasks);
+                    zkTasksHandler.wakeup();
+                }
+            }
+            curatorFramework.getChildren().usingWatcher(new CmdWatcher(zkTasksHandler, zkTaskPath)).forPath(zkTaskPath);
         } catch (Exception e) {
             e.printStackTrace();
         }
+
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {

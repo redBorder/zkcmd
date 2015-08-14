@@ -12,7 +12,7 @@
         <dependency>
             <groupId>net.redborder</groupId>
             <artifactId>clusterizer</artifactId>
-            <version>0.3.3-SNAPSHOT</version>
+            <version>0.3.3</version>
         </dependency>
     </dependencies>
 

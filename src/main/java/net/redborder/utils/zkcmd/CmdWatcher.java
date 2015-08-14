@@ -25,45 +25,43 @@ public class CmdWatcher implements CuratorWatcher {
     CuratorFramework curatorFramework;
     String zkTaskPath;
     ObjectMapper objectMapper = new ObjectMapper();
-    InterProcessSemaphoreMutex mutex;
 
 
-    public CmdWatcher(ZkTasksHandler zkTasksHandler, String zkTaskPath, InterProcessSemaphoreMutex mutex) {
-        log.info("Created new CmdWatcher!");
+    public CmdWatcher(ZkTasksHandler zkTasksHandler, String zkTaskPath) {
+        log.debug("Created new CmdWatcher!");
         this.zkTasksHandler = zkTasksHandler;
         this.curatorFramework = zkTasksHandler.getCuratorClient();
         this.zkTaskPath = zkTaskPath;
-        this.mutex = mutex;
     }
 
     public void process(WatchedEvent watchedEvent) throws Exception {
-        Watcher.Event.EventType type = watchedEvent.getType();
-        mutex.acquire(15, TimeUnit.SECONDS);
-        log.info("[WATCH] Acquire mutex!");
+        if (zkTasksHandler.isLeader()) {
+            Watcher.Event.EventType type = watchedEvent.getType();
+            log.info("I'm LEADER!");
 
-        log.info("[WATCH] CmdWatcher :: {} {}" + type.name(), watchedEvent.getPath());
+            log.info("[WATCH] CmdWatcher :: {} {}" + type.name(), watchedEvent.getPath());
 
-        if (type.equals(Watcher.Event.EventType.NodeChildrenChanged)) {
-            List<String> cmdNodeJsonTasks = curatorFramework.getChildren().forPath(zkTaskPath);
-            List<Task> cmdTasks = new ArrayList<>();
-            log.info("Found {} tasks: {}", cmdNodeJsonTasks.size(), cmdNodeJsonTasks);
+            if (type.equals(Watcher.Event.EventType.NodeChildrenChanged)) {
+                List<String> cmdNodeJsonTasks = curatorFramework.getChildren().forPath(zkTaskPath);
+                List<Task> cmdTasks = new ArrayList<>();
+                log.info("Found {} tasks: {}", cmdNodeJsonTasks.size(), cmdNodeJsonTasks);
 
-            for (String cmdNodeJsonTask : cmdNodeJsonTasks) {
-                byte[] cmdJsonTask = curatorFramework.getData().forPath(zkTaskPath + "/" + cmdNodeJsonTask);
-                Map<String, Object> map = objectMapper.readValue(cmdJsonTask, Map.class);
-                cmdTasks.add(new CmdTask((String) map.get("cmd"), (Map<String, String>) map.get("files")));
-                curatorFramework.delete().forPath(zkTaskPath + "/" + cmdNodeJsonTask);
+                for (String cmdNodeJsonTask : cmdNodeJsonTasks) {
+                    byte[] cmdJsonTask = curatorFramework.getData().forPath(zkTaskPath + "/" + cmdNodeJsonTask);
+                    Map<String, Object> map = objectMapper.readValue(cmdJsonTask, Map.class);
+                    cmdTasks.add(new CmdTask((String) map.get("cmd"), (Map<String, String>) map.get("files")));
+                    curatorFramework.delete().forPath(zkTaskPath + "/" + cmdNodeJsonTask);
+                }
+
+                if (!cmdTasks.isEmpty()) {
+                    zkTasksHandler.setTasks(cmdTasks);
+                    zkTasksHandler.wakeup();
+                }
             }
-
-            if (!cmdTasks.isEmpty()) {
-                zkTasksHandler.setTasks(cmdTasks);
-                zkTasksHandler.wakeup();
-            }
+        } else {
+            log.info("I'm not a leader ... only watch!");
         }
+        curatorFramework.getChildren().usingWatcher(new CmdWatcher(zkTasksHandler, zkTaskPath)).forPath(ConfigFile.getInstance().getZkTaskPath());
 
-        curatorFramework.getChildren().usingWatcher(new CmdWatcher(zkTasksHandler, zkTaskPath, mutex)).forPath(ConfigFile.getInstance().getZkTaskPath());
-
-        mutex.release();
-        log.info("[WATCH] release mutex!");
     }
 }
