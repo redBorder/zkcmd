@@ -4,11 +4,11 @@
 
     <groupId>net.redborder.utils</groupId>
     <artifactId>zkcmd</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
 
     <scm>
         <developerConnection>scm:git:git@gitlab.redborder.lan:bigdata/rb-zkcmd.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>zkcmd-1.0.2</tag>
     </scm>
 
     <repositories>
