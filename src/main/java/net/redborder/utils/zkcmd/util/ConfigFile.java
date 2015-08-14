@@ -66,7 +66,13 @@ public class ConfigFile {
     }
 
     public String getZkTaskPath() {
-        return getFromGeneral("zk_task_path");
+        String path = getFromGeneral("zk_task_path");
+
+        if(path == null) {
+            path = "/zkcmd/tasks";
+        }
+
+        return path;
     }
 
     public String tmpFilesDir() {
