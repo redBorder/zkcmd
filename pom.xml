@@ -4,11 +4,11 @@
 
     <groupId>net.redborder.utils</groupId>
     <artifactId>zkcmd</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1-SNAPSHOT</version>
 
     <scm>
         <developerConnection>scm:git:git@gitlab.redborder.lan:bigdata/rb-zkcmd.git</developerConnection>
-        <tag>zkcmd-1.0.0</tag>
+        <tag>clusterizer-0.3.3</tag>
     </scm>
 
     <dependencies>
