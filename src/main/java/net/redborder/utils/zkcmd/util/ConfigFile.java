@@ -18,7 +18,7 @@ public class ConfigFile {
 
     private static ConfigFile theInstance = null;
     private static final Object initMonitor = new Object();
-    private final String CONFIG_FILE_PATH = "/root/config.yml";
+    private final String CONFIG_FILE_PATH = "/opt/rb/etc/rb-zkcmd/config.yml";
     private Map<String, Object> _general;
 
 
