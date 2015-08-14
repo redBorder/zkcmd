@@ -8,8 +8,16 @@
 
     <scm>
         <developerConnection>scm:git:git@gitlab.redborder.lan:bigdata/rb-zkcmd.git</developerConnection>
-        <tag>clusterizer-0.3.3</tag>
+        <tag>HEAD</tag>
     </scm>
+
+    <repositories>
+        <repository>
+            <id>internal</id>
+            <name>readBorder Internal Repository</name>
+            <url>http://archiva.redborder.lan/repository/internal/</url>
+        </repository>
+    </repositories>
 
     <dependencies>
         <dependency>
