@@ -38,8 +38,8 @@ public class CmdManager extends Thread {
     }
 
     private void moreTasks() {
-        CmdTask cmdTask = zkUtils.getTask();
         log.info("Looking for new tasks ...");
+        CmdTask cmdTask = zkUtils.getTask();
         if (cmdTask != null) {
             try {
                 log.info("Found one task put in the queue!");

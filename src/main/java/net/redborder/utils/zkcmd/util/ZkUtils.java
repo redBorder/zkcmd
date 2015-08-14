@@ -28,9 +28,9 @@ public class ZkUtils {
         this.latch = new LeaderLatch(curatorFramework, zkWorkspace + "/latch");
         this.barrier = new DistributedBarrier(curatorFramework, zkWorkspace + "/working");
 
+
         try {
             this.hostname = InetAddress.getLocalHost().getHostName();
-
             latch.start();
         } catch (Exception e) {
             e.printStackTrace();
@@ -57,7 +57,7 @@ public class ZkUtils {
             String zkPath = zkWorkspace + "/workers/" + hostname;
 
             if (!checkExist(zkPath)) {
-                curatorFramework.create().forPath(zkPath, "0".getBytes());
+                curatorFramework.create().creatingParentsIfNeeded().forPath(zkPath, "0".getBytes());
             }
 
         } catch (Exception e) {

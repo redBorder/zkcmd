@@ -39,6 +39,7 @@ public class ZkCmd {
                     log.info("ZkNode: {} doesn't exist, create it.", zkTaskPath);
                     curatorFramework.create().creatingParentsIfNeeded().forPath(zkTaskPath);
                 }
+
             } else {
                 Thread.sleep(1000);
             }
