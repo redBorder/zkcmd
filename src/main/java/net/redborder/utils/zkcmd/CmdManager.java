@@ -16,16 +16,15 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class CmdManager extends Thread {
     private final Logger log = LoggerFactory.getLogger(CmdManager.class);
-    LinkedBlockingQueue<CmdTask> cmdTasks = new LinkedBlockingQueue<>(1000);
     String tmpFilesDir = ConfigFile.getInstance().tmpFilesDir();
     Integer maxTask = ConfigFile.getInstance().maxTask();
+    AtomicLong flag = new AtomicLong(maxTask);
+    LinkedBlockingQueue<CmdTask> cmdTasks = new LinkedBlockingQueue<>(maxTask);
     ExecutorService executorService = Executors.newFixedThreadPool(maxTask);
     ZkUtils zkUtils;
     TaskWatcher taskWatcher;
@@ -65,13 +64,19 @@ public class CmdManager extends Thread {
 
         while (running) {
             try {
-                moreTasks();
-                CmdTask cmdTask = cmdTasks.take();
-                Map<String, String> files = writteFiles(cmdTask.getFiles());
-                String cmd = getCommand(cmdTask.getCmd(), files);
+                if(flag.get() != 0) {
+                    moreTasks();
+                    CmdTask cmdTask = cmdTasks.take();
+                    Map<String, String> files = writteFiles(cmdTask.getFiles());
+                    String cmd = getCommand(cmdTask.getCmd(), files);
 
-                executorService.submit(new CmdWorker(cmd, files.values()));
-                zkUtils.incrementTask();
+                    executorService.submit(new CmdWorker(cmd, files.values(), flag));
+                    zkUtils.incrementTask();
+                    flag.getAndDecrement();
+                } else {
+                    log.info("The manager is full, waiting to some task finish");
+                    Thread.sleep(10000);
+                }
             } catch (InterruptedException e) {
                 log.info("Time to shutdown!");
             }
@@ -135,9 +140,6 @@ public class CmdManager extends Thread {
         @Override
         public void process(WatchedEvent watchedEvent) throws Exception {
             Watcher.Event.EventType type = watchedEvent.getType();
-            log.info("I'm LEADER!");
-
-            log.info("[WATCH] CmdWatcher :: {} {}" + type.name(), watchedEvent.getPath());
 
             if (type.equals(Watcher.Event.EventType.NodeChildrenChanged)) {
                 moreTasks();

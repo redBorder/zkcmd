@@ -8,16 +8,19 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class CmdWorker implements Runnable {
     final Logger log = LoggerFactory.getLogger(CmdWorker.class);
 
     String cmd;
     Collection<String> filesToDelete;
+    AtomicLong flag;
 
-    public CmdWorker(String cmd, Collection<String> filesToDelete) {
+    public CmdWorker(String cmd, Collection<String> filesToDelete, AtomicLong flag) {
         this.cmd = cmd;
         this.filesToDelete = filesToDelete;
+        this.flag = flag;
     }
 
     public void run() {
@@ -41,6 +44,7 @@ public class CmdWorker implements Runnable {
                 file.delete();
             }
             log.info("Clean up!");
+            flag.incrementAndGet();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
