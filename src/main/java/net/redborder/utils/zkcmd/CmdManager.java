@@ -70,8 +70,8 @@ public class CmdManager extends Thread {
                     Map<String, String> files = writteFiles(cmdTask.getFiles());
                     String cmd = getCommand(cmdTask.getCmd(), files);
 
-                    executorService.submit(new CmdWorker(cmd, files.values(), flag));
-                    zkUtils.incrementTask();
+                    Integer id = zkUtils.incrementTask();
+                    executorService.submit(new CmdWorker(id, cmd, files.values(), flag));
                     flag.getAndDecrement();
                 } else {
                     log.info("The manager is full, waiting to some task finish");

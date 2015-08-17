@@ -16,38 +16,48 @@ public class CmdWorker implements Runnable {
     String cmd;
     Collection<String> filesToDelete;
     AtomicLong flag;
+    Integer id;
 
-    public CmdWorker(String cmd, Collection<String> filesToDelete, AtomicLong flag) {
+    public CmdWorker(Integer id, String cmd, Collection<String> filesToDelete, AtomicLong flag) {
         this.cmd = cmd;
         this.filesToDelete = filesToDelete;
         this.flag = flag;
+        this.id = id;
     }
 
     public void run() {
         try {
-            log.info("Executing: " + cmd);
+            log.info("ID[{}] Executing: {}", id, cmd);
             Process process = Runtime.getRuntime().exec(cmd);
             process.waitFor();
 
             if (process.exitValue() == 1) {
-                log.error("Error executing: " + cmd);
-                BufferedReader stdError = new BufferedReader(new
-                        InputStreamReader(process.getErrorStream()));
-                String s = null;
-                while ((s = stdError.readLine()) != null) {
-                    log.info(s);
-                }
+                printError(process);
             }
 
             for (String filetoDelete : filesToDelete) {
                 File file = new File(filetoDelete);
                 file.delete();
             }
-            log.info("Clean up!");
+            log.info("Clean up ID[{}]!", id);
             flag.incrementAndGet();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void printError(Process process){
+        log.error("Error executing: " + cmd);
+        BufferedReader stdError = new BufferedReader(new
+                InputStreamReader(process.getErrorStream()));
+        String s;
+        try {
+            while ((s = stdError.readLine()) != null) {
+                log.error(s);
+            }
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }

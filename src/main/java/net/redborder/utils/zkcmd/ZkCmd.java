@@ -27,21 +27,14 @@ public class ZkCmd {
         log.info("Initiating ZkCmd ...");
 
         try {
-            Thread.sleep(5000);
+            if (!curatorFramework.getState().equals(CuratorFrameworkState.STARTED)) {
+                log.info("Curator client isn't started .. waitting 10 sec.");
+                Thread.sleep(10000);
+            }
 
-            if (zkUtils.isLeader()) {
-                if (!curatorFramework.getState().equals(CuratorFrameworkState.STARTED)) {
-                    log.info("Curator client isn't started .. waitting 5 sec.");
-                    Thread.sleep(5000);
-                }
-
-                if (curatorFramework.checkExists().forPath(zkTaskPath) == null) {
-                    log.info("ZkNode: {} doesn't exist, create it.", zkTaskPath);
-                    curatorFramework.create().creatingParentsIfNeeded().forPath(zkTaskPath);
-                }
-
-            } else {
-                Thread.sleep(1000);
+            if (curatorFramework.checkExists().forPath(zkTaskPath) == null) {
+                log.info("ZkNode: {} doesn't exist, create it.", zkTaskPath);
+                curatorFramework.create().creatingParentsIfNeeded().forPath(zkTaskPath);
             }
 
             zkUtils.registerNode();

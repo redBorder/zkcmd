@@ -9,8 +9,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class ZkUtils {
     final Logger log = LoggerFactory.getLogger(ZkUtils.class);
@@ -78,22 +80,25 @@ public class ZkUtils {
         }
     }
 
-    public void incrementTask() {
+    public Integer incrementTask() {
         String zkPath = zkWorkspace + "/workers/" + hostname;
-
+        Integer works = 0;
         try {
             byte[] data = curatorFramework.getData().forPath(zkPath);
-            Integer works = new Integer(new String(data));
+            works = new Integer(new String(data));
             works++;
             curatorFramework.setData().forPath(zkPath, works.toString().getBytes());
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        return works;
     }
 
     public void setBarrier() {
         try {
-            barrier.waitOnBarrier();
+            log.info("Waiting on barrier. Other node is working ...");
+            barrier.waitOnBarrier(10, TimeUnit.SECONDS);
             log.info("Setting barrier. Now, I'm working.");
             barrier.setBarrier();
         } catch (Exception e) {
@@ -113,21 +118,41 @@ public class ZkUtils {
     public CmdTask getTask() {
         setBarrier();
         CmdTask cmdTask = null;
+        boolean needRelease = true;
+        List<String> tasks = new ArrayList<>();
+        String zkPath = ConfigFile.getInstance().getZkTaskPath();
 
         try {
-            String zkPath = ConfigFile.getInstance().getZkTaskPath();
-            List<String> tasks = curatorFramework.getChildren().forPath(zkPath);
-            if (!tasks.isEmpty()) {
-                String taskName = tasks.get(0);
-                byte[] task = curatorFramework.getData().forPath(zkPath + "/" + taskName);
-                cmdTask = new CmdTask(objectMapper.readValue(task, Map.class));
-                curatorFramework.delete().forPath(zkPath + "/" + taskName);
-            }
+            tasks = curatorFramework.getChildren().forPath(zkPath);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error(e.getMessage(), e);
         }
 
-        releaseBarrier();
+        String taskName = "";
+        if (!tasks.isEmpty()) {
+            try {
+                taskName = tasks.get(0);
+                if (checkExist(zkPath + "/" + taskName)) {
+                    byte[] task = curatorFramework.getData().forPath(zkPath + "/" + taskName);
+                    cmdTask = new CmdTask(objectMapper.readValue(task, Map.class));
+                    curatorFramework.delete().forPath(zkPath + "/" + taskName);
+                } else {
+                    releaseBarrier();
+                    cmdTask = getTask();
+                    needRelease = false;
+                }
+            } catch (Exception e) {
+                log.warn("Task {} doesn't exist try to get other task ...", taskName);
+                releaseBarrier();
+                cmdTask = getTask();
+                needRelease = false;
+            }
+        }
+
+        if (needRelease) {
+            releaseBarrier();
+        }
+
         return cmdTask;
     }
 
