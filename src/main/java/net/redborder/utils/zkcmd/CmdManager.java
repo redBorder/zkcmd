@@ -2,6 +2,7 @@ package net.redborder.utils.zkcmd;
 
 import net.redborder.utils.zkcmd.util.CmdTask;
 import net.redborder.utils.zkcmd.util.ConfigFile;
+import net.redborder.utils.zkcmd.util.Stats;
 import net.redborder.utils.zkcmd.util.ZkUtils;
 import org.apache.curator.framework.api.CuratorWatcher;
 import org.apache.zookeeper.WatchedEvent;
@@ -28,12 +29,17 @@ public class CmdManager extends Thread {
     ExecutorService executorService = Executors.newFixedThreadPool(maxTask);
     ZkUtils zkUtils;
     TaskWatcher taskWatcher;
+    Long jobs;
+    Stats stats;
 
     volatile boolean running = false;
 
     public CmdManager(ZkUtils zkUtils) {
         this.zkUtils = zkUtils;
         this.taskWatcher = new TaskWatcher();
+        this.jobs = 0L;
+        this.stats = new Stats();
+        stats.start();
     }
 
     private void moreTasks() {
@@ -73,8 +79,10 @@ public class CmdManager extends Thread {
                     Integer id = zkUtils.incrementTask();
                     executorService.submit(new CmdWorker(id, cmd, files.values(), flag));
                     flag.getAndDecrement();
+                    jobs++;
+                    stats.incrementJob();
+                    stats.setCurrentJobs(maxTask - flag.intValue());
                 } else {
-                    log.info("The manager is full, waiting to some task finish");
                     Thread.sleep(10000);
                 }
             } catch (InterruptedException e) {
@@ -85,6 +93,7 @@ public class CmdManager extends Thread {
 
     public void shutdown() {
         running = false;
+        stats.close();
         executorService.shutdown();
         try {
             executorService.awaitTermination(1, TimeUnit.MINUTES);
