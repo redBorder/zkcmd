@@ -77,11 +77,9 @@ public class CmdManager extends Thread {
                     String cmd = getCommand(cmdTask.getCmd(), files);
 
                     Integer id = zkUtils.incrementTask();
-                    executorService.submit(new CmdWorker(id, cmd, files.values(), flag));
+                    executorService.submit(new CmdWorker(id, cmd, files.values(), flag, stats));
                     flag.getAndDecrement();
                     jobs++;
-                    stats.incrementJob();
-                    stats.setCurrentJobs(maxTask - flag.intValue());
                 } else {
                     Thread.sleep(10000);
                 }

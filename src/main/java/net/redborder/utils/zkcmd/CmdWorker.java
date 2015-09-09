@@ -1,5 +1,6 @@
 package net.redborder.utils.zkcmd;
 
+import net.redborder.utils.zkcmd.util.Stats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,15 +18,18 @@ public class CmdWorker implements Runnable {
     Collection<String> filesToDelete;
     AtomicLong flag;
     Integer id;
+    Stats stats;
 
-    public CmdWorker(Integer id, String cmd, Collection<String> filesToDelete, AtomicLong flag) {
+    public CmdWorker(Integer id, String cmd, Collection<String> filesToDelete, AtomicLong flag, Stats stats) {
         this.cmd = cmd;
         this.filesToDelete = filesToDelete;
         this.flag = flag;
         this.id = id;
+        this.stats = stats;
     }
 
     public void run() {
+        stats.incrementJob();
         try {
             log.info("ID[{}] Executing: {}", id, cmd);
             Process process = Runtime.getRuntime().exec(cmd);
@@ -46,6 +50,7 @@ public class CmdWorker implements Runnable {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        stats.decrementJob();
     }
 
     private void printError(Process process){

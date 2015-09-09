@@ -4,17 +4,20 @@ package net.redborder.utils.zkcmd.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
 public class Stats extends Thread{
     private final Logger log = LoggerFactory.getLogger(Stats.class);
     volatile boolean running = false;
 
-    long jobs;
-    Integer currentJobs;
+    AtomicLong jobs;
+    AtomicInteger currentJobs;
     long capacity;
 
     public Stats(){
-        this.jobs = 0L;
-        this.currentJobs = 0;
+        this.jobs = new AtomicLong(0L);
+        this.currentJobs = new AtomicInteger(0);
         this.capacity = ConfigFile.getInstance().maxTask();
     }
 
@@ -24,7 +27,7 @@ public class Stats extends Thread{
         running = true;
         while (running){
             try {
-                log.info("{\"currentJobs\":{}, \"totalCapacity\":{}, \"totalJobs\":{}}", currentJobs, capacity, jobs);
+                log.info("{\"currentJobs\":{}, \"totalCapacity\":{}, \"totalJobs\":{}}", currentJobs.get(), capacity, jobs.get());
                 Thread.sleep(60000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -37,10 +40,11 @@ public class Stats extends Thread{
     }
 
     public void incrementJob(){
-        this.jobs ++;
+        this.jobs.incrementAndGet();
+        this.currentJobs.incrementAndGet();
     }
 
-    public void setCurrentJobs(Integer currentJobs){
-        this.currentJobs = currentJobs;
+    public void decrementJob(){
+        this.currentJobs.decrementAndGet();
     }
 }
