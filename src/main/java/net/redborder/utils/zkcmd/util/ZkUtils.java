@@ -2,8 +2,8 @@ package net.redborder.utils.zkcmd.util;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.CuratorWatcher;
-import org.apache.curator.framework.recipes.barriers.DistributedBarrier;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
+import org.apache.curator.framework.recipes.locks.InterProcessMutex;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,7 +12,6 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 public class ZkUtils {
     final Logger log = LoggerFactory.getLogger(ZkUtils.class);
@@ -20,7 +19,7 @@ public class ZkUtils {
     LeaderLatch latch;
     String zkWorkspace;
     String hostname;
-    DistributedBarrier barrier;
+    InterProcessMutex mutex;
     ObjectMapper objectMapper;
 
     public ZkUtils(CuratorFramework curatorFramework, String zkWorkspace) {
@@ -28,7 +27,7 @@ public class ZkUtils {
         this.zkWorkspace = zkWorkspace;
         this.objectMapper = new ObjectMapper();
         this.latch = new LeaderLatch(curatorFramework, zkWorkspace + "/latch");
-        this.barrier = new DistributedBarrier(curatorFramework, zkWorkspace + "/working");
+        this.mutex = new InterProcessMutex(curatorFramework, zkWorkspace + "/working");
 
 
         try {
@@ -95,30 +94,28 @@ public class ZkUtils {
         return works;
     }
 
-    public void setBarrier() {
+    public void setMutex() {
         try {
-            log.info("Waiting on barrier. Other node is working ...");
-            barrier.waitOnBarrier(10, TimeUnit.SECONDS);
-            log.info("Setting barrier. Now, I'm working.");
-            barrier.setBarrier();
+            log.info("Waiting on mutex. Other node is working ...");
+            mutex.acquire();
+            log.info("Setting mutex. Now, I'm working.");
         } catch (Exception e) {
-            log.error("Can't setBarrier");
+            log.error("Can't setMutex");
         }
     }
 
-    public void releaseBarrier() {
+    public void releaseMutex() {
         try {
-            barrier.removeBarrier();
-            log.info("Releasing barrier. Is time to relax.");
+            mutex.release();
+            log.info("Releasing mutex. Is time to relax.");
         } catch (Exception e) {
-            log.error("Can't removeBarrier", hostname);
+            log.error("Can't releaseMutex", hostname);
         }
     }
 
     public CmdTask getTask() {
-        setBarrier();
+        setMutex();
         CmdTask cmdTask = null;
-        boolean needRelease = true;
         List<String> tasks = new ArrayList<>();
         String zkPath = ConfigFile.getInstance().getZkTaskPath();
 
@@ -132,26 +129,16 @@ public class ZkUtils {
         if (!tasks.isEmpty()) {
             try {
                 taskName = tasks.get(0);
-                if (checkExist(zkPath + "/" + taskName)) {
-                    byte[] task = curatorFramework.getData().forPath(zkPath + "/" + taskName);
-                    cmdTask = new CmdTask(objectMapper.readValue(task, Map.class));
-                    curatorFramework.delete().forPath(zkPath + "/" + taskName);
-                } else {
-                    releaseBarrier();
-                    cmdTask = getTask();
-                    needRelease = false;
-                }
+                byte[] task = curatorFramework.getData().forPath(zkPath + "/" + taskName);
+                cmdTask = new CmdTask(objectMapper.readValue(task, Map.class));
+                curatorFramework.delete().forPath(zkPath + "/" + taskName);
             } catch (Exception e) {
                 log.warn("Task {} doesn't exist try to get other task ...", taskName);
-                releaseBarrier();
-                cmdTask = getTask();
-                needRelease = false;
+
             }
         }
 
-        if (needRelease) {
-            releaseBarrier();
-        }
+        releaseMutex();
 
         return cmdTask;
     }

@@ -27,6 +27,7 @@ public class CmdManager extends Thread {
     AtomicLong flag = new AtomicLong(maxTask);
     LinkedBlockingQueue<CmdTask> cmdTasks = new LinkedBlockingQueue<>(maxTask);
     ExecutorService executorService = Executors.newFixedThreadPool(maxTask);
+    final CmdManager instance = this;
     ZkUtils zkUtils;
     TaskWatcher taskWatcher;
     Long jobs;
@@ -42,7 +43,7 @@ public class CmdManager extends Thread {
         stats.start();
     }
 
-    private void moreTasks() {
+    public void moreTasks() {
         log.info("Looking for new tasks ...");
         CmdTask cmdTask = zkUtils.getTask();
         if (cmdTask != null) {
@@ -142,14 +143,23 @@ public class CmdManager extends Thread {
     }
 
 
+
     private class TaskWatcher implements CuratorWatcher {
 
         @Override
         public void process(WatchedEvent watchedEvent) throws Exception {
             Watcher.Event.EventType type = watchedEvent.getType();
 
+            log.info("Watching call, {}", type.name());
             if (type.equals(Watcher.Event.EventType.NodeChildrenChanged)) {
-                moreTasks();
+                Thread t = new Thread() {
+                    @Override
+                    public void run() {
+                        instance.moreTasks();
+                    }
+                };
+
+                t.start();
             }
         }
     }
