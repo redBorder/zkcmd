@@ -1,16 +1,14 @@
 package net.redborder.utils.zkcmd.util;
 
-import net.redborder.clusterizer.MappedTask;
-
+import java.util.HashMap;
 import java.util.Map;
 
-public class CmdTask extends MappedTask {
+public class CmdTask {
 
-    public CmdTask(){
-    }
+    private Map<String, Object> task = new HashMap<>();
 
     public CmdTask(Map<String, Object> data){
-        initialize(data);
+        task.putAll(data);
     }
 
     public CmdTask(String cmd){
@@ -23,18 +21,18 @@ public class CmdTask extends MappedTask {
     }
 
     public void setCmd(String cmd){
-        setData("cmd", cmd);
+        task.put("cmd", cmd);
     }
 
     public void setFiles(Map<String, String> args){
-        setData("files", args);
+        task.put("files", args);
     }
 
     public String getCmd(){
-        return getData("cmd");
+        return (String) task.get("cmd");
     }
 
     public Map<String, String> getFiles(){
-        return getData("files");
+        return (Map<String, String>) task.get("files");
     }
 }

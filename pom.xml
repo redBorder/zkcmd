@@ -7,7 +7,7 @@
     <version>1.1.5-SNAPSHOT</version>
 
     <scm>
-        <developerConnection>scm:git@github.com:redBorder/zkcmd.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:redBorder/zkcmd.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
